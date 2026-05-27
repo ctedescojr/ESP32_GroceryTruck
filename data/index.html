@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grocery Truck</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>Fiorino Artesanal</h1>
+        <p>Conectado localmente</p>
+    </header>
+
+    <div class="container" id="store-container">
+        <!-- Products will be injected here -->
+    </div>
+
+    <div class="cart-bar" id="cart-bar" style="display: none;">
+        <div>
+            <strong>Total: </strong> <span id="cart-total">R$ 0,00</span>
+        </div>
+        <button class="btn" style="width: auto;" onclick="checkout()">Finalizar (<span id="cart-count">0</span>)</button>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

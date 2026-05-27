@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel Admin - Grocery Truck</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="/libs/xlsx.full.min.js"></script>
+    <style>
+        .admin-nav {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            overflow-x: auto;
+            padding-bottom: 5px;
+        }
+        .admin-nav button {
+            background: #eee;
+            color: #333;
+            flex-shrink: 0;
+        }
+        .admin-nav button.active {
+            background: var(--primary);
+            color: white;
+        }
+        .section { display: none; }
+        .section.active { display: block; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+        .form-group input, .form-group select {
+            width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px;
+        }
+        #preview-table { overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Painel Administrativo</h1>
+    </header>
+
+    <div class="container">
+        <div class="admin-nav">
+            <button class="btn active" onclick="showSection('import')">Importar</button>
+            <button class="btn" onclick="showSection('images')">Imagens</button>
+            <button class="btn" onclick="showSection('sales')">Vendas</button>
+        </div>
+
+        <!-- IMPORT SECTION -->
+        <div id="import" class="section active">
+            <h2>Importar Produtos em Lote</h2>
+            <p>Selecione um arquivo .csv ou .xlsx contendo seus produtos. <br>
+            <a href="/modelo" style="color: var(--primary);">Baixar modelo</a></p>
+            
+            <div class="form-group" style="margin-top: 15px;">
+                <input type="file" id="file-import" accept=".csv, .xlsx">
+            </div>
+            
+            <button class="btn" onclick="processFile()">Pré-visualizar Importação</button>
+
+            <div id="preview-container" style="display: none; margin-top: 20px;">
+                <h3>Preview</h3>
+                <div id="preview-table"></div>
+                <button class="btn" style="margin-top: 15px; background: green;" onclick="confirmImport()">Confirmar Importação</button>
+            </div>
+        </div>
+
+        <!-- IMAGES SECTION -->
+        <div id="images" class="section">
+            <h2>Gerenciar Imagens</h2>
+            <p>Faça upload de imagens (jpg, png). O nome do arquivo deve ser igual ao slug do produto (ex: geleia_de_pimenta.jpg).</p>
+            
+            <div class="form-group" style="margin-top: 15px;">
+                <input type="file" id="image-upload" accept="image/jpeg, image/png" multiple>
+            </div>
+            <button class="btn" onclick="uploadImages()">Fazer Upload em Lote</button>
+            
+            <h3 style="margin-top:20px;">Status das Imagens</h3>
+            <div style="overflow-x: auto;">
+                <table class="admin-table">
+                    <thead><tr><th>Produto</th><th>Slug</th><th>Status</th></tr></thead>
+                    <tbody id="images-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- SALES SECTION -->
+        <div id="sales" class="section">
+            <h2>Relatório de Vendas</h2>
+            <button class="btn" onclick="loadSales()">Atualizar Vendas</button>
+            <h3 id="total-sales" style="margin-top:15px; color: var(--primary);">Total: R$ 0,00</h3>
+            <div style="overflow-x: auto;">
+                <table class="admin-table" style="margin-top: 10px;">
+                    <thead><tr><th>Data/Hora</th><th>Total</th><th>Itens</th></tr></thead>
+                    <tbody id="sales-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script src="admin.js"></script>
+</body>
+</html>
