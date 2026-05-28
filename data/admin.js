@@ -76,7 +76,8 @@ function openProductForm() {
     document.getElementById('product-form-container').style.display = 'block';
     document.getElementById('product-form').reset();
     document.getElementById('prod-id').value = '';
-    document.getElementById('prod-img').value = '';
+    document.getElementById('prod-file').value = '';
+    document.getElementById('prod-current-file').innerText = '';
     document.getElementById('form-title').innerText = 'Novo Produto';
     calcMargin();
 }
@@ -95,17 +96,24 @@ function editProduct(id) {
     document.getElementById('prod-cost').value = p.price_cost;
     document.getElementById('prod-sell').value = p.price_sell;
     document.getElementById('prod-stock').value = p.stock;
-    document.getElementById('prod-img').value = p.image || '';
+    document.getElementById('prod-file').value = '';
+    const currentFileName = p.image ? p.image.split('/').pop() : 'Sem foto';
+    document.getElementById('prod-current-file').innerText = `Arquivo atual: ${currentFileName}`;
     document.getElementById('prod-active').value = p.active ? "true" : "false";
     document.getElementById('form-title').innerText = 'Editar Produto';
     calcMargin();
     document.getElementById('product-form-container').style.display = 'block';
 }
 
+function getSlug(name) {
+    return name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').replace(/_$/, '');
+}
+
 async function saveProduct(e) {
     e.preventDefault();
     const id = document.getElementById('prod-id').value;
     const isEdit = !!id;
+    const fileInput = document.getElementById('prod-file');
     
     const payload = {
         name: document.getElementById('prod-name').value,
@@ -116,9 +124,6 @@ async function saveProduct(e) {
         stock: parseInt(document.getElementById('prod-stock').value),
         active: document.getElementById('prod-active').value === "true"
     };
-
-    const imgVal = document.getElementById('prod-img').value.trim();
-    if(imgVal) payload.image = imgVal;
 
     if(isEdit) payload.id = id;
 
@@ -131,7 +136,25 @@ async function saveProduct(e) {
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(payload)
         });
+        
         if(res.ok) {
+            const savedProduct = await res.json();
+            
+            // Handle Image Upload if file selected
+            if (fileInput.files.length > 0) {
+                const file = fileInput.files[0];
+                const ext = file.name.substring(file.name.lastIndexOf('.'));
+                const newFileName = savedProduct.slug + ext;
+                
+                const formData = new FormData();
+                formData.append('file', file, newFileName);
+                
+                await fetch('/api/products/image/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+            }
+
             alert('Salvo com sucesso!');
             closeProductForm();
             loadProducts();

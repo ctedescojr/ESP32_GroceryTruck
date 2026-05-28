@@ -72,7 +72,11 @@
                     </div>
                     <div id="margin-display" class="margin-indicator">Margem: --%</div>
                     <div class="form-group" style="margin-top:10px;"><label for="prod-stock">Estoque</label><input type="number" id="prod-stock" required></div>
-                    <div class="form-group"><label for="prod-img">URL da Imagem (Opcional)</label><input type="text" id="prod-img" placeholder="/img/slug.jpg ou link externo"></div>
+                    <div class="form-group">
+                        <label for="prod-file">Foto do Produto</label>
+                        <input type="file" id="prod-file" accept="image/jpeg, image/png">
+                        <div id="prod-current-file" style="font-size:0.85em; color:#666; margin-top:3px;"></div>
+                    </div>
                     <div class="form-group"><label for="prod-active">Ativo</label>
                         <select id="prod-active"><option value="true">Sim</option><option value="false">Não</option></select>
                     </div>
