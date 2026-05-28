@@ -20,17 +20,32 @@ function showSection(id) {
 // --- CRUD PRODUTOS ---
 async function loadProducts() {
     try {
-        const res = await fetch('/api/products/all');
-        allProducts = await res.json();
+        const [prodRes, imgRes] = await Promise.all([
+            fetch('/api/products/all'),
+            fetch('/api/images')
+        ]);
+        allProducts = await prodRes.json();
+        const images = (await imgRes.json()).images || [];
         
         let html = '';
         allProducts.forEach(p => {
             if (!p) return;
-            const imgPath = p.image ? p.image : '';
+            
+            // Intelligent Path Selection
+            let imgPath = p.image || '';
+            if (!imgPath || !imgPath.includes('.')) {
+                const extensions = ['.png', '.jpg', '.jpeg'];
+                for (let ext of extensions) {
+                    if (images.includes(p.slug + ext)) {
+                        imgPath = '/img/' + p.slug + ext;
+                        break;
+                    }
+                }
+            }
+            if (!imgPath) imgPath = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='40' height='40'><rect width='40' height='40' fill='%23ccc'/></svg>";
+
             html += `<tr>
-                <td><img src="${imgPath}" width="40" height="40" style="object-fit:cover; border-radius:4px;" 
-                    onerror="if(this.src.includes('.jpg')){this.src=this.src.replace('.jpg','.png')}else{this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'40\\' height=\\'40\\'><rect width=\\'40\\' height=\\'40\\' fill=\\'%23ccc\\'/></svg>'}"
-                ></td>
+                <td><img src="${imgPath}" width="40" height="40" style="object-fit:cover; border-radius:4px;"></td>
                 <td>${p.name}<br><small>${p.category}</small></td>
                 <td>${p.stock}</td>
                 <td>R$ ${parseFloat(p.price_sell).toFixed(2)}</td>
@@ -325,15 +340,18 @@ async function loadSales() {
         const sumRes = await fetch(`/api/sales/summary?date=${dateInput}`);
         const summary = await sumRes.json();
         
-        document.getElementById('card-total').innerText = `R$ ${summary.total_revenue.toFixed(2)}`;
-        document.getElementById('card-count').innerText = summary.total_sales;
+        const revenue = summary.total_revenue || 0;
+        document.getElementById('card-total').innerText = `R$ ${revenue.toFixed(2)}`;
+        document.getElementById('card-count').innerText = summary.total_sales || 0;
         
         let topProd = '-';
         let maxQty = 0;
-        for(let key in summary.items_sold) {
-            if(summary.items_sold[key] > maxQty) {
-                maxQty = summary.items_sold[key];
-                topProd = key;
+        if (summary.items_sold) {
+            for(let key in summary.items_sold) {
+                if(summary.items_sold[key] > maxQty) {
+                    maxQty = summary.items_sold[key];
+                    topProd = key;
+                }
             }
         }
         document.getElementById('card-top').innerText = topProd;
@@ -342,11 +360,13 @@ async function loadSales() {
         const sales = await res.json();
         let html = '';
         sales.reverse().forEach(s => {
+            if (!s) return;
             const dt = new Date(s.timestamp * 1000).toLocaleTimeString('pt-BR');
-            const itemsStr = s.items.map(i => `${i.qty}x ${i.name}`).join(', ');
+            const itemsStr = s.items ? s.items.map(i => `${i.qty}x ${i.name}`).join(', ') : '';
+            const total = parseFloat(s.total) || 0;
             html += `<tr>
                 <td>${dt}</td>
-                <td style="font-weight:bold;">R$ ${parseFloat(s.total).toFixed(2)}</td>
+                <td style="font-weight:bold;">R$ ${total.toFixed(2)}</td>
                 <td style="font-size: 0.8rem">${itemsStr}</td>
             </tr>`;
         });

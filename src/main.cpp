@@ -237,6 +237,7 @@ void setup() {
                     if (!LittleFS.exists(path)) {
                         String pngPath = "/img/" + slug + ".png";
                         if (LittleFS.exists(pngPath)) path = pngPath;
+                        else path = ""; // LEAVE EMPTY if no file exists yet
                     }
                     p["image"] = path;
                 }
@@ -336,6 +337,31 @@ void setup() {
                 size_t size = f ? f.size() : 0;
                 if (f) f.close();
                 *msg = "{\"saved\":\"" + path + "\",\"size_bytes\":" + String(size) + "}";
+
+                // Auto-heal products.json extension
+                String slug = filename;
+                int dotIdx = slug.lastIndexOf('.');
+                if (dotIdx > 0) slug = slug.substring(0, dotIdx);
+
+                File pFile = LittleFS.open("/products.json", "r");
+                if (pFile) {
+                    JsonDocument db;
+                    deserializeJson(db, pFile);
+                    pFile.close();
+                    JsonArray arr = db.as<JsonArray>();
+                    bool changed = false;
+                    for (JsonObject p : arr) {
+                        if (p["slug"] == slug) {
+                            p["image"] = path;
+                            changed = true;
+                        }
+                    }
+                    if (changed) {
+                        pFile = LittleFS.open("/products.json", "w");
+                        serializeJson(db, pFile);
+                        pFile.close();
+                    }
+                }
             }
         }
     });
@@ -356,6 +382,7 @@ void setup() {
                 if (!LittleFS.exists(path)) {
                     String pngPath = "/img/" + slug + ".png";
                     if (LittleFS.exists(pngPath)) path = pngPath;
+                    else path = ""; // LEAVE EMPTY if no file exists yet
                 }
                 newProduct["image"] = path;
             }
