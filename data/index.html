@@ -5,22 +5,43 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Grocery Truck</title>
     <link rel="stylesheet" href="style.css">
+    <style>
+        .category-nav { display: flex; overflow-x: auto; gap: 10px; padding: 10px 20px; background: #fff; position: sticky; top: 0; z-index: 10; border-bottom: 1px solid #eee; }
+        .category-nav a { text-decoration: none; color: var(--primary); font-weight: bold; white-space: nowrap; }
+        .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: flex-end; justify-content: center; }
+        .modal-content { background: #fff; width: 100%; max-width: 500px; max-height: 80vh; border-radius: 15px 15px 0 0; padding: 20px; overflow-y: auto; }
+        .cart-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #eee; }
+        .qty-controls { display: flex; align-items: center; gap: 10px; }
+        .qty-controls button { background: #eee; border: none; padding: 5px 10px; border-radius: 4px; font-weight: bold; cursor: pointer; }
+    </style>
 </head>
 <body>
-    <header>
-        <h1>Fiorino Artesanal</h1>
-        <p>Conectado localmente</p>
+    <header style="text-align: center; padding: 15px; background: #343a40; color: white;">
+        <h1 style="margin: 0;">Fiorino Artesanal</h1>
+        <p style="margin: 5px 0 0 0; font-size: 0.9em; opacity: 0.8;">Conectado localmente</p>
     </header>
 
-    <div class="container" id="store-container">
-        <!-- Products will be injected here -->
+    <div class="category-nav" id="category-nav"></div>
+
+    <div class="container" id="store-container" style="padding-bottom: 80px;"></div>
+
+    <div class="cart-bar" id="cart-bar" style="display: none; position: fixed; bottom: 0; left: 0; right: 0; background: var(--primary); color: white; padding: 15px 20px; justify-content: space-between; align-items: center; z-index: 100; box-shadow: 0 -2px 10px rgba(0,0,0,0.1);">
+        <div><strong>Total: </strong> <span id="cart-total">R$ 0,00</span></div>
+        <button class="btn" style="width: auto; background: white; color: var(--primary);" onclick="openCart()">Ver Carrinho (<span id="cart-count">0</span>)</button>
     </div>
 
-    <div class="cart-bar" id="cart-bar" style="display: none;">
-        <div>
-            <strong>Total: </strong> <span id="cart-total">R$ 0,00</span>
+    <div class="modal" id="cart-modal">
+        <div class="modal-content">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin: 0;">Seu Carrinho</h2>
+                <button onclick="closeCart()" style="background: none; border: none; font-size: 1.5em; cursor: pointer;">&times;</button>
+            </div>
+            <div id="cart-items"></div>
+            <div style="margin-top: 20px; font-size: 1.2em; text-align: right;">
+                <strong>Total: <span id="modal-total">R$ 0,00</span></strong>
+            </div>
+            <button class="btn" style="width: 100%; margin-top: 20px; padding: 15px; font-size: 1.1em;" onclick="checkout()">Finalizar Compra</button>
         </div>
-        <button class="btn" style="width: auto;" onclick="checkout()">Finalizar (<span id="cart-count">0</span>)</button>
     </div>
 
     <script src="app.js"></script>

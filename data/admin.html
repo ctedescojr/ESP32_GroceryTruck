@@ -14,65 +14,100 @@
             overflow-x: auto;
             padding-bottom: 5px;
         }
-        .admin-nav button {
-            background: #eee;
-            color: #333;
-            flex-shrink: 0;
-        }
-        .admin-nav button.active {
-            background: var(--primary);
-            color: white;
-        }
+        .admin-nav button { background: #eee; color: #333; flex-shrink: 0; padding: 10px 15px; border: none; cursor: pointer; border-radius: 4px; }
+        .admin-nav button.active { background: #28a745; color: white; }
         .section { display: none; }
         .section.active { display: block; }
         .form-group { margin-bottom: 15px; }
         .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
-        .form-group input, .form-group select {
-            width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px;
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;
         }
+        .admin-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        .admin-table th, .admin-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        .admin-table th { background: #f4f4f4; }
+        .btn { padding: 10px 15px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        .btn-danger { background: #dc3545; }
+        .status-ok { color: green; font-weight: bold; }
+        .status-warn { color: orange; font-weight: bold; }
+        .status-error { color: red; font-weight: bold; }
+        .cards { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
+        .card { flex: 1; min-width: 120px; background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center; border: 1px solid #dee2e6; }
+        .card h4 { margin: 0 0 10px 0; color: #6c757d; font-size: 0.9em; }
+        .card p { margin: 0; font-size: 1.5em; font-weight: bold; color: #343a40; }
         #preview-table { overflow-x: auto; }
+        .margin-indicator { font-size: 0.9em; margin-top: 5px; }
+        .margin-good { color: green; font-weight: bold; }
+        .margin-bad { color: red; font-weight: bold; }
     </style>
 </head>
 <body>
-    <header>
-        <h1>Painel Administrativo</h1>
+    <header style="background: #343a40; color: white; padding: 15px; text-align: center;">
+        <h1 style="margin:0;">Painel Administrativo</h1>
     </header>
 
-    <div class="container">
+    <div style="padding: 20px;">
         <div class="admin-nav">
-            <button class="btn active" onclick="showSection('import')">Importar</button>
-            <button class="btn" onclick="showSection('images')">Imagens</button>
-            <button class="btn" onclick="showSection('sales')">Vendas</button>
+            <button class="active" onclick="showSection('produtos')">Produtos</button>
+            <button onclick="showSection('import')">Importar</button>
+            <button onclick="showSection('images')">Imagens</button>
+            <button onclick="showSection('sales')">Vendas</button>
+        </div>
+
+        <!-- PRODUTOS SECTION -->
+        <div id="produtos" class="section active">
+            <h2>Gerenciar Produtos</h2>
+            <button class="btn" onclick="openProductForm()">+ Novo Produto</button>
+            
+            <div id="product-form-container" style="display:none; background:#f9f9f9; padding:15px; border:1px solid #ccc; margin-top:15px; border-radius:5px;">
+                <h3 id="form-title">Novo Produto</h3>
+                <form id="product-form" onsubmit="saveProduct(event)">
+                    <input type="hidden" id="prod-id">
+                    <div class="form-group"><label>Nome</label><input type="text" id="prod-name" required></div>
+                    <div class="form-group"><label>Categoria</label><input type="text" id="prod-cat" required></div>
+                    <div class="form-group"><label>Descrição</label><textarea id="prod-desc"></textarea></div>
+                    <div style="display:flex; gap:10px;">
+                        <div class="form-group" style="flex:1;"><label>Preço Custo</label><input type="number" step="0.01" id="prod-cost" oninput="calcMargin()" required></div>
+                        <div class="form-group" style="flex:1;"><label>Preço Venda</label><input type="number" step="0.01" id="prod-sell" oninput="calcMargin()" required></div>
+                    </div>
+                    <div id="margin-display" class="margin-indicator">Margem: --%</div>
+                    <div class="form-group" style="margin-top:10px;"><label>Estoque</label><input type="number" id="prod-stock" required></div>
+                    <div class="form-group"><label>Ativo</label>
+                        <select id="prod-active"><option value="true">Sim</option><option value="false">Não</option></select>
+                    </div>
+                    <button type="submit" class="btn">Salvar</button>
+                    <button type="button" class="btn" style="background:#6c757d;" onclick="closeProductForm()">Cancelar</button>
+                </form>
+            </div>
+
+            <div style="overflow-x: auto; margin-top: 15px;">
+                <table class="admin-table">
+                    <thead><tr><th>Foto</th><th>Nome</th><th>Estoque</th><th>Venda</th><th>Ações</th></tr></thead>
+                    <tbody id="products-tbody"></tbody>
+                </table>
+            </div>
         </div>
 
         <!-- IMPORT SECTION -->
-        <div id="import" class="section active">
+        <div id="import" class="section">
             <h2>Importar Produtos em Lote</h2>
-            <p>Selecione um arquivo .csv ou .xlsx contendo seus produtos. <br>
-            <a href="/modelo" style="color: var(--primary);">Baixar modelo</a></p>
-            
-            <div class="form-group" style="margin-top: 15px;">
-                <input type="file" id="file-import" accept=".csv, .xlsx">
-            </div>
-            
+            <p>Selecione um arquivo .csv ou .xlsx contendo seus produtos. <a href="/modelo">Baixar modelo</a></p>
+            <div class="form-group"><input type="file" id="file-import" accept=".csv, .xlsx"></div>
             <button class="btn" onclick="processFile()">Pré-visualizar Importação</button>
-
             <div id="preview-container" style="display: none; margin-top: 20px;">
                 <h3>Preview</h3>
                 <div id="preview-table"></div>
-                <button class="btn" style="margin-top: 15px; background: green;" onclick="confirmImport()">Confirmar Importação</button>
+                <button class="btn" style="margin-top: 15px;" onclick="confirmImport()">Confirmar Importação</button>
             </div>
         </div>
 
         <!-- IMAGES SECTION -->
         <div id="images" class="section">
             <h2>Gerenciar Imagens</h2>
-            <p>Faça upload de imagens (jpg, png). O nome do arquivo deve ser igual ao slug do produto (ex: geleia_de_pimenta.jpg).</p>
-            
-            <div class="form-group" style="margin-top: 15px;">
-                <input type="file" id="image-upload" accept="image/jpeg, image/png" multiple>
-            </div>
-            <button class="btn" onclick="uploadImages()">Fazer Upload em Lote</button>
+            <p>Faça upload de imagens (jpg, png). O nome deve ser igual ao slug do produto. (Máx 100KB/img)</p>
+            <div id="storage-info" style="margin-bottom:15px; font-weight:bold;">Armazenamento: Carregando...</div>
+            <div class="form-group"><input type="file" id="image-upload" accept="image/jpeg, image/png" multiple></div>
+            <button class="btn" onclick="uploadImages()">Fazer Upload</button>
             
             <h3 style="margin-top:20px;">Status das Imagens</h3>
             <div style="overflow-x: auto;">
@@ -86,11 +121,20 @@
         <!-- SALES SECTION -->
         <div id="sales" class="section">
             <h2>Relatório de Vendas</h2>
-            <button class="btn" onclick="loadSales()">Atualizar Vendas</button>
-            <h3 id="total-sales" style="margin-top:15px; color: var(--primary);">Total: R$ 0,00</h3>
+            <div class="form-group" style="display:flex; gap:10px; align-items:center;">
+                <input type="date" id="sales-date" onchange="loadSales()">
+                <button class="btn" onclick="loadSales()">Atualizar</button>
+            </div>
+            
+            <div class="cards">
+                <div class="card"><h4>Total</h4><p id="card-total">R$ 0,00</p></div>
+                <div class="card"><h4>Vendas</h4><p id="card-count">0</p></div>
+                <div class="card"><h4>Mais Vendido</h4><p id="card-top" style="font-size:1.1em;">-</p></div>
+            </div>
+
             <div style="overflow-x: auto;">
-                <table class="admin-table" style="margin-top: 10px;">
-                    <thead><tr><th>Data/Hora</th><th>Total</th><th>Itens</th></tr></thead>
+                <table class="admin-table">
+                    <thead><tr><th>Hora</th><th>Total</th><th>Itens</th></tr></thead>
                     <tbody id="sales-tbody"></tbody>
                 </table>
             </div>

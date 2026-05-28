@@ -18,12 +18,8 @@ File uploadFile;
 String generateSlug(String input) {
     String slug = "";
     input.toLowerCase();
-    
     for (size_t i = 0; i < input.length(); i++) {
         char c = input[i];
-        // Basic unaccent mapping (works mostly for UTF-8 encoded single-byte extensions or by ignoring multibyte)
-        // Since UTF-8 takes multiple bytes for accents, a simple replace is safer.
-        // For robustness, we will just keep a-z, 0-9, and replace spaces with _.
         if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')) {
             slug += c;
         } else if (c == ' ' || c == '-' || c == '_') {
@@ -32,10 +28,7 @@ String generateSlug(String input) {
             }
         }
     }
-    // Remove trailing underscore
     if (slug.endsWith("_")) slug.remove(slug.length() - 1);
-    
-    // Fallback if empty
     if (slug.length() == 0) slug = String(millis());
     return slug;
 }
@@ -47,68 +40,153 @@ void addCorsHeaders(AsyncWebServerResponse *response) {
     response->addHeader("Access-Control-Allow-Headers", "Content-Type");
 }
 
+class ProductUpdateHandler : public AsyncWebHandler {
+public:
+    ProductUpdateHandler() {}
+    bool canHandle(AsyncWebServerRequest *request) override {
+        if (request->url().startsWith("/api/products/") && request->url().length() > 14) {
+            if (request->url() == "/api/products/bulk" || request->url() == "/api/products/all" || request->url() == "/api/products/image/upload") return false;
+            return request->method() == HTTP_PUT || request->method() == HTTP_DELETE || request->method() == HTTP_OPTIONS;
+        }
+        return false;
+    }
+    void handleRequest(AsyncWebServerRequest *request) override {
+        if (request->method() == HTTP_OPTIONS) {
+            AsyncWebServerResponse *response = request->beginResponse(200);
+            addCorsHeaders(response);
+            request->send(response);
+            return;
+        }
+        if (request->method() == HTTP_DELETE) {
+            String id = request->url().substring(14);
+            File file = LittleFS.open("/products.json", "r");
+            JsonDocument db;
+            if (file) { deserializeJson(db, file); file.close(); }
+            JsonArray arr = db.as<JsonArray>();
+            bool found = false;
+            JsonDocument newDb;
+            JsonArray newArr = newDb.to<JsonArray>();
+            for (JsonObject p : arr) {
+                if (p["id"] == id) found = true;
+                else newArr.add(p);
+            }
+            file = LittleFS.open("/products.json", "w");
+            serializeJson(newDb, file);
+            file.close();
+            
+            AsyncWebServerResponse *response = request->beginResponse(200, "application/json", found ? "{\"success\":true}" : "{\"error\":\"not found\"}");
+            addCorsHeaders(response);
+            request->send(response);
+            return;
+        }
+        if (request->method() == HTTP_PUT) {
+            if (request->_tempObject) {
+                String* body = (String*)request->_tempObject;
+                String id = request->url().substring(14);
+                JsonDocument updateDoc;
+                deserializeJson(updateDoc, *body);
+                delete body;
+                request->_tempObject = NULL;
+                
+                File file = LittleFS.open("/products.json", "r");
+                JsonDocument db;
+                if (file) { deserializeJson(db, file); file.close(); }
+                JsonArray arr = db.as<JsonArray>();
+                bool found = false;
+                for (JsonObject p : arr) {
+                    if (p["id"] == id) {
+                        found = true;
+                        for (JsonPair kv : updateDoc.as<JsonObject>()) {
+                            if (kv.key() != "id") p[kv.key()] = kv.value();
+                        }
+                        if (updateDoc["name"].is<JsonVariant>() && !updateDoc["slug"].is<JsonVariant>()) {
+                            p["slug"] = generateSlug(updateDoc["name"].as<String>());
+                        }
+                        break;
+                    }
+                }
+                file = LittleFS.open("/products.json", "w");
+                serializeJson(db, file);
+                file.close();
+                
+                AsyncWebServerResponse *response = request->beginResponse(200, "application/json", found ? "{\"success\":true}" : "{\"error\":\"not found\"}");
+                addCorsHeaders(response);
+                request->send(response);
+            } else {
+                request->send(400, "application/json", "{\"error\":\"No body\"}");
+            }
+        }
+    }
+    void handleBody(AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) override {
+        if (request->method() == HTTP_PUT) {
+            if (index == 0) request->_tempObject = new String();
+            String* body = (String*)request->_tempObject;
+            body->concat((const char*)data, len);
+        }
+    }
+};
+
 void setup() {
     Serial.begin(115200);
-    Serial.println("\nBooting ESP32_GroceryTruck...");
+    Serial.println("\nBooting ESP32_GroceryTruck v2...");
 
     if (!LittleFS.begin(true)) {
         Serial.println("An error has occurred while mounting LittleFS");
         return;
     }
+    
+    if (!LittleFS.exists("/img")) {
+        LittleFS.mkdir("/img");
+    }
 
     WiFi.mode(WIFI_AP);
     WiFi.softAPConfig(AP_IP, AP_GATEWAY, AP_SUBNET);
     WiFi.softAP(AP_SSID, AP_PASSWORD);
-
     Serial.print("AP IP address: ");
     Serial.println(WiFi.softAPIP());
 
-    // OPTIONS (CORS preflight)
     server.onNotFound([](AsyncWebServerRequest *request) {
         if (request->method() == HTTP_OPTIONS) {
-            request->send(200);
+            AsyncWebServerResponse *response = request->beginResponse(200);
+            addCorsHeaders(response);
+            request->send(response);
         } else {
-            // Serve static files
-            if (LittleFS.exists(request->url())) {
-                AsyncWebServerResponse *response = request->beginResponse(LittleFS, request->url(), String(), false);
-                response->addHeader("Cache-Control", "max-age=3600");
-                request->send(response);
-            } else if (request->url() == "/") {
+            if (request->url() == "/") {
                 request->send(LittleFS, "/index.html", "text/html");
             } else if (request->url() == "/admin") {
                 request->send(LittleFS, "/admin.html", "text/html");
+            } else if (LittleFS.exists(request->url())) {
+                AsyncWebServerResponse *response = request->beginResponse(LittleFS, request->url(), String(), false);
+                response->addHeader("Cache-Control", "max-age=3600");
+                request->send(response);
             } else {
                 request->send(404, "text/plain", "Not found");
             }
         }
     });
 
-    // --- PRODUCTS API ---
+    server.on("/favicon.ico", HTTP_GET, [](AsyncWebServerRequest *request){
+        request->send(204);
+    });
+
+    server.addHandler(new ProductUpdateHandler());
+
     server.on("/api/products", HTTP_GET, [](AsyncWebServerRequest *request) {
         File file = LittleFS.open("/products.json", "r");
         if (!file) {
-            request->send(200, "application/json", "[]");
+            AsyncWebServerResponse *response = request->beginResponse(200, "application/json", "[]");
+            addCorsHeaders(response);
+            request->send(response);
             return;
         }
-        
-        JsonDocument doc;
-        deserializeJson(doc, file);
-        file.close();
-        
-        // Filter only active for public API
-        JsonDocument activeDoc;
-        JsonArray activeArray = activeDoc.to<JsonArray>();
+        JsonDocument doc; deserializeJson(doc, file); file.close();
+        JsonDocument activeDoc; JsonArray activeArray = activeDoc.to<JsonArray>();
         JsonArray array = doc.as<JsonArray>();
-        
         for (JsonObject obj : array) {
-            if (obj["active"] == true || !obj.containsKey("active")) {
-                activeArray.add(obj);
-            }
+            if (obj["active"] == true || !obj["active"].is<JsonVariant>()) activeArray.add(obj);
         }
-        
-        String responseStr;
-        serializeJson(activeArray, responseStr);
-        AsyncWebServerResponse *response = request->beginResponse(200, "application/json", responseStr);
+        String res; serializeJson(activeArray, res);
+        AsyncWebServerResponse *response = request->beginResponse(200, "application/json", res);
         addCorsHeaders(response);
         request->send(response);
     });
@@ -116,7 +194,9 @@ void setup() {
     server.on("/api/products/all", HTTP_GET, [](AsyncWebServerRequest *request) {
         File file = LittleFS.open("/products.json", "r");
         if (!file) {
-            request->send(200, "application/json", "[]");
+            AsyncWebServerResponse *response = request->beginResponse(200, "application/json", "[]");
+            addCorsHeaders(response);
+            request->send(response);
             return;
         }
         AsyncWebServerResponse *response = request->beginResponse(file, "/products.json", "application/json");
@@ -126,185 +206,213 @@ void setup() {
     });
 
     server.on("/api/products/bulk", HTTP_POST, [](AsyncWebServerRequest *request) {
-        if (!request->_tempObject) {
-            request->send(400, "application/json", "{\"error\":\"No body\"}");
-            return;
-        }
-        String* body = (String*)request->_tempObject;
-        
-        JsonDocument newProducts;
-        DeserializationError error = deserializeJson(newProducts, *body);
-        delete body; // Free memory
-        request->_tempObject = NULL;
-
-        if (error) {
-            request->send(400, "application/json", "{\"error\":\"Invalid JSON\"}");
-            return;
-        }
-
-        // Load existing
-        File file = LittleFS.open("/products.json", "r");
-        JsonDocument db;
-        if (file) {
-            deserializeJson(db, file);
-            file.close();
-        }
-        JsonArray dbArray = db.is<JsonArray>() ? db.as<JsonArray>() : db.to<JsonArray>();
-
-        JsonArray arr = newProducts.as<JsonArray>();
-        int imported = 0;
-        
-        for (JsonObject p : arr) {
-            String name = p["name"] | "Produto";
-            String slug = generateSlug(name);
-            p["slug"] = slug;
-            p["id"] = String(millis()) + String(imported);
-            p["image"] = "/img/" + slug + ".jpg"; // Default
-            if (!p.containsKey("active")) p["active"] = true;
+        if (request->_tempObject) {
+            String* body = (String*)request->_tempObject;
+            JsonDocument newProducts;
+            DeserializationError error = deserializeJson(newProducts, *body);
+            delete body; request->_tempObject = NULL;
             
-            dbArray.add(p);
-            imported++;
+            if (error) { 
+                String errorMsg = "{\"error\":\"Invalid JSON: ";
+                errorMsg += error.c_str();
+                errorMsg += "\"}";
+                AsyncWebServerResponse *response = request->beginResponse(400, "application/json", errorMsg);
+                addCorsHeaders(response);
+                request->send(response);
+                return; 
+            }
+
+            File file = LittleFS.open("/products.json", "r");
+            JsonDocument db; if (file) { deserializeJson(db, file); file.close(); }
+            JsonArray dbArray = db.is<JsonArray>() ? db.as<JsonArray>() : db.to<JsonArray>();
+            JsonArray arr = newProducts.as<JsonArray>();
+            int imported = 0;
+            for (JsonObject p : arr) {
+                String name = p["name"] | "Produto";
+                String slug = generateSlug(name);
+                p["slug"] = slug;
+                p["id"] = String(millis()) + String(imported);
+                if (!p["image"].is<JsonVariant>()) p["image"] = "/img/" + slug + ".jpg";
+                if (!p["active"].is<JsonVariant>()) p["active"] = true;
+                dbArray.add(p);
+                imported++;
+            }
+            file = LittleFS.open("/products.json", "w"); serializeJson(db, file); file.close();
+            
+            JsonDocument resDoc;
+            resDoc["imported"] = imported;
+            resDoc["skipped"] = 0;
+            resDoc["errors"] = resDoc.to<JsonObject>().createNestedArray("errors"); // Fix warning
+            String res;
+            serializeJson(resDoc, res);
+
+            AsyncWebServerResponse *response = request->beginResponse(200, "application/json", res);
+            addCorsHeaders(response);
+            request->send(response);
+        } else {
+            request->send(400, "application/json", "{\"error\":\"No body\"}");
         }
-
-        file = LittleFS.open("/products.json", "w");
-        serializeJson(db, file);
-        file.close();
-
-        String res = "{\"imported\":" + String(imported) + ",\"skipped\":0,\"errors\":[]}";
-        AsyncWebServerResponse *response = request->beginResponse(200, "application/json", res);
-        addCorsHeaders(response);
-        request->send(response);
     }, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
         if (index == 0) {
-            request->_tempObject = new String();
+            String* body = new String();
+            body->reserve(total);
+            request->_tempObject = body;
         }
         String* body = (String*)request->_tempObject;
         body->concat((const char*)data, len);
     });
 
-    // --- IMAGES API ---
+    server.on("/api/products", HTTP_POST, [](AsyncWebServerRequest *request) {
+        if (request->_tempObject) {
+            String* body = (String*)request->_tempObject;
+            JsonDocument newProduct;
+            deserializeJson(newProduct, *body);
+            delete body; request->_tempObject = NULL;
+            
+            String name = newProduct["name"] | "Produto";
+            String slug = generateSlug(name);
+            newProduct["slug"] = slug;
+            newProduct["id"] = String(millis());
+            if(!newProduct["image"].is<JsonVariant>()) newProduct["image"] = "/img/" + slug + ".jpg";
+            if(!newProduct["active"].is<JsonVariant>()) newProduct["active"] = true;
+            
+            File file = LittleFS.open("/products.json", "r");
+            JsonDocument db; if (file) { deserializeJson(db, file); file.close(); }
+            JsonArray dbArray = db.is<JsonArray>() ? db.as<JsonArray>() : db.to<JsonArray>();
+            dbArray.add(newProduct);
+            file = LittleFS.open("/products.json", "w"); serializeJson(db, file); file.close();
+            
+            String res; serializeJson(newProduct, res);
+            AsyncWebServerResponse *response = request->beginResponse(200, "application/json", res);
+            addCorsHeaders(response);
+            request->send(response);
+        } else {
+            request->send(400, "application/json", "{\"error\":\"No body\"}");
+        }
+    }, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
+        if (index == 0) request->_tempObject = new String();
+        String* body = (String*)request->_tempObject;
+        body->concat((const char*)data, len);
+    });
+
     server.on("/api/images", HTTP_GET, [](AsyncWebServerRequest *request) {
         File dir = LittleFS.open("/img");
-        JsonDocument doc;
-        JsonArray arr = doc["images"].to<JsonArray>();
-        
-        File file = dir.openNextFile();
-        while(file) {
-            arr.add(String(file.name()));
-            file = dir.openNextFile();
+        JsonDocument doc; JsonArray arr = doc["images"].to<JsonArray>();
+        if(dir) {
+            File file = dir.openNextFile();
+            while(file) { arr.add(String(file.name())); file = dir.openNextFile(); }
         }
-        
-        String resStr;
-        serializeJson(doc, resStr);
+        String resStr; serializeJson(doc, resStr);
         AsyncWebServerResponse *response = request->beginResponse(200, "application/json", resStr);
         addCorsHeaders(response);
         request->send(response);
     });
 
     server.on("/api/images/check", HTTP_GET, [](AsyncWebServerRequest *request) {
-        if (!request->hasParam("slug")) {
-            request->send(400, "application/json", "{\"error\":\"Missing slug\"}");
-            return;
-        }
+        if (!request->hasParam("slug")) { request->send(400, "application/json", "{\"error\":\"Missing slug\"}"); return; }
         String slug = request->getParam("slug")->value();
         String pathJpg = "/img/" + slug + ".jpg";
         String pathPng = "/img/" + slug + ".png";
-        
         String resStr;
-        if (LittleFS.exists(pathJpg)) {
-            resStr = "{\"exists\":true,\"path\":\"" + pathJpg + "\"}";
-        } else if (LittleFS.exists(pathPng)) {
-            resStr = "{\"exists\":true,\"path\":\"" + pathPng + "\"}";
-        } else {
-            resStr = "{\"exists\":false,\"slug\":\"" + slug + "\"}";
-        }
-        
+        if (LittleFS.exists(pathJpg)) resStr = "{\"exists\":true,\"path\":\"" + pathJpg + "\"}";
+        else if (LittleFS.exists(pathPng)) resStr = "{\"exists\":true,\"path\":\"" + pathPng + "\"}";
+        else resStr = "{\"exists\":false,\"slug\":\"" + slug + "\"}";
         AsyncWebServerResponse *response = request->beginResponse(200, "application/json", resStr);
         addCorsHeaders(response);
         request->send(response);
     });
 
     server.on("/api/products/image/upload", HTTP_POST, [](AsyncWebServerRequest *request) {
-        request->send(200, "application/json", "{\"success\":true}");
+        if (request->_tempObject) {
+            String* msg = (String*)request->_tempObject;
+            int code = msg->indexOf("error") > 0 ? 413 : 200;
+            AsyncWebServerResponse *response = request->beginResponse(code, "application/json", *msg);
+            addCorsHeaders(response);
+            request->send(response);
+            delete msg; request->_tempObject = NULL;
+        } else {
+            AsyncWebServerResponse *response = request->beginResponse(400, "application/json", "{\"error\":\"Upload failed\"}");
+            addCorsHeaders(response);
+            request->send(response);
+        }
     }, [](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
         String path = "/img/" + filename;
         if (!index) {
+            request->_tempObject = new String();
+            if (request->contentLength() > 102400) {
+                *((String*)request->_tempObject) = "{\"error\":\"too_large\",\"max_bytes\":102400}";
+                return;
+            }
             uploadFile = LittleFS.open(path, "w");
         }
-        if (uploadFile) {
-            uploadFile.write(data, len);
+        String* msg = (String*)request->_tempObject;
+        if (msg && msg->indexOf("error") > 0) return;
+        if (index + len > 102400) {
+            if (uploadFile) { uploadFile.close(); uploadFile = File(); }
+            LittleFS.remove(path);
+            *msg = "{\"error\":\"too_large\",\"max_bytes\":102400}";
+            return;
         }
+        if (uploadFile) uploadFile.write(data, len);
         if (final) {
-            if (uploadFile) {
-                uploadFile.close();
+            if (uploadFile) uploadFile.close();
+            if (msg->length() == 0) {
+                File f = LittleFS.open(path, "r");
+                size_t size = f ? f.size() : 0;
+                if (f) f.close();
+                *msg = "{\"saved\":\"" + path + "\",\"size_bytes\":" + String(size) + "}";
             }
         }
     });
 
-    // --- SALES API ---
     server.on("/api/sales", HTTP_POST, [](AsyncWebServerRequest *request) {
-        if (!request->_tempObject) {
-            request->send(400, "application/json", "{\"error\":\"No body\"}");
-            return;
-        }
-        String* body = (String*)request->_tempObject;
-        
-        JsonDocument newSale;
-        DeserializationError error = deserializeJson(newSale, *body);
-        delete body;
-        request->_tempObject = NULL;
+        if (request->_tempObject) {
+            String* body = (String*)request->_tempObject;
+            JsonDocument newSale;
+            DeserializationError error = deserializeJson(newSale, *body);
+            delete body; request->_tempObject = NULL;
+            if (error) { 
+                AsyncWebServerResponse *response = request->beginResponse(400, "application/json", "{\"error\":\"Invalid JSON\"}");
+                addCorsHeaders(response);
+                request->send(response);
+                return; 
+            }
 
-        if (error) {
-            request->send(400, "application/json", "{\"error\":\"Invalid JSON\"}");
-            return;
-        }
+            newSale["id"] = String(millis());
+            if (!newSale["timestamp"].is<JsonVariant>()) newSale["timestamp"] = time(NULL);
+            if (!newSale["date"].is<JsonVariant>()) newSale["date"] = "1970-01-01"; // Fallback if client doesn't send date
 
-        newSale["id"] = String(millis());
-        newSale["timestamp"] = time(NULL); // basic timestamp, might need actual RTC setup
-
-        // Save sale
-        File file = LittleFS.open("/sales.json", "r");
-        JsonDocument db;
-        if (file) {
-            deserializeJson(db, file);
-            file.close();
-        }
-        JsonArray dbArray = db.is<JsonArray>() ? db.as<JsonArray>() : db.to<JsonArray>();
-        dbArray.add(newSale);
-
-        file = LittleFS.open("/sales.json", "w");
-        serializeJson(db, file);
-        file.close();
-        
-        // Decrement stock in products.json
-        File pFile = LittleFS.open("/products.json", "r");
-        JsonDocument pDb;
-        if (pFile) {
-            deserializeJson(pDb, pFile);
-            pFile.close();
-            JsonArray pArray = pDb.as<JsonArray>();
-            JsonArray items = newSale["items"];
+            File file = LittleFS.open("/sales.json", "r");
+            JsonDocument db; if (file) { deserializeJson(db, file); file.close(); }
+            JsonArray dbArray = db.is<JsonArray>() ? db.as<JsonArray>() : db.to<JsonArray>();
+            dbArray.add(newSale);
+            file = LittleFS.open("/sales.json", "w"); serializeJson(db, file); file.close();
             
-            for (JsonObject item : items) {
-                String pId = item["product_id"];
-                int qty = item["qty"];
-                for (JsonObject p : pArray) {
-                    if (p["id"] == pId) {
-                        int stock = p["stock"] | 0;
-                        p["stock"] = max(0, stock - qty);
-                        break;
+            File pFile = LittleFS.open("/products.json", "r");
+            JsonDocument pDb;
+            if (pFile) {
+                deserializeJson(pDb, pFile); pFile.close();
+                JsonArray pArray = pDb.as<JsonArray>();
+                JsonArray items = newSale["items"];
+                for (JsonObject item : items) {
+                    String pId = item["product_id"];
+                    int qty = item["qty"];
+                    for (JsonObject p : pArray) {
+                        if (p["id"] == pId) {
+                            int stock = p["stock"] | 0;
+                            p["stock"] = max(0, stock - qty);
+                            break;
+                        }
                     }
                 }
+                pFile = LittleFS.open("/products.json", "w"); serializeJson(pDb, pFile); pFile.close();
             }
-            pFile = LittleFS.open("/products.json", "w");
-            serializeJson(pDb, pFile);
-            pFile.close();
+            AsyncWebServerResponse *response = request->beginResponse(200, "application/json", "{\"success\":true}");
+            addCorsHeaders(response);
+            request->send(response);
+        } else {
+            request->send(400, "application/json", "{\"error\":\"No body\"}");
         }
-
-        AsyncWebServerResponse *response = request->beginResponse(200, "application/json", "{\"success\":true}");
-        addCorsHeaders(response);
-        request->send(response);
-
     }, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
         if (index == 0) request->_tempObject = new String();
         String* body = (String*)request->_tempObject;
@@ -314,13 +422,66 @@ void setup() {
     server.on("/api/sales", HTTP_GET, [](AsyncWebServerRequest *request) {
         File file = LittleFS.open("/sales.json", "r");
         if (!file) {
-            request->send(200, "application/json", "[]");
+            AsyncWebServerResponse *response = request->beginResponse(200, "application/json", "[]");
+            addCorsHeaders(response);
+            request->send(response);
             return;
         }
-        AsyncWebServerResponse *response = request->beginResponse(file, "/sales.json", "application/json");
+        JsonDocument db; deserializeJson(db, file); file.close();
+        String filterDate = request->hasParam("date") ? request->getParam("date")->value() : "";
+        if (filterDate == "") {
+            String res; serializeJson(db, res);
+            AsyncWebServerResponse *response = request->beginResponse(200, "application/json", res);
+            addCorsHeaders(response);
+            request->send(response);
+        } else {
+            JsonDocument filtered; JsonArray fArr = filtered.to<JsonArray>();
+            JsonArray arr = db.as<JsonArray>();
+            for (JsonObject s : arr) { if (s["date"] == filterDate) fArr.add(s); }
+            String res; serializeJson(fArr, res);
+            AsyncWebServerResponse *response = request->beginResponse(200, "application/json", res);
+            addCorsHeaders(response);
+            request->send(response);
+        }
+    });
+
+    server.on("/api/sales/summary", HTTP_GET, [](AsyncWebServerRequest *request) {
+        File file = LittleFS.open("/sales.json", "r");
+        JsonDocument db; if (file) { deserializeJson(db, file); file.close(); }
+        JsonArray arr = db.as<JsonArray>();
+        String filterDate = request->hasParam("date") ? request->getParam("date")->value() : "";
+        float totalRevenue = 0; int totalSales = 0;
+        JsonDocument summary; summary["total_revenue"] = 0; summary["total_sales"] = 0;
+        JsonObject itemsSold = summary["items_sold"].to<JsonObject>();
+        
+        for (JsonObject s : arr) {
+            String sDate = s["date"] | "";
+            if (filterDate == "" || sDate == filterDate) {
+                totalSales++;
+                totalRevenue += s["total"].as<float>();
+                JsonArray items = s["items"];
+                for (JsonObject item : items) {
+                    String pName = item["name"];
+                    int qty = item["qty"];
+                    if (itemsSold[pName].is<JsonVariant>()) itemsSold[pName] = itemsSold[pName].as<int>() + qty;
+                    else itemsSold[pName] = qty;
+                }
+            }
+        }
+        summary["total_revenue"] = totalRevenue; summary["total_sales"] = totalSales;
+        String res; serializeJson(summary, res);
+        AsyncWebServerResponse *response = request->beginResponse(200, "application/json", res);
         addCorsHeaders(response);
         request->send(response);
-        file.close();
+    });
+
+    server.on("/api/system/storage", HTTP_GET, [](AsyncWebServerRequest *request) {
+        size_t total = LittleFS.totalBytes();
+        size_t used = LittleFS.usedBytes();
+        String res = "{\"total_bytes\":" + String(total) + ",\"used_bytes\":" + String(used) + ",\"free_bytes\":" + String(total - used) + "}";
+        AsyncWebServerResponse *response = request->beginResponse(200, "application/json", res);
+        addCorsHeaders(response);
+        request->send(response);
     });
 
     server.on("/modelo", HTTP_GET, [](AsyncWebServerRequest *request) {
@@ -338,6 +499,5 @@ void setup() {
 }
 
 void loop() {
-    // Handled by Async Web Server
     delay(10);
 }
