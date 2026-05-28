@@ -59,6 +59,7 @@ function openProductForm() {
     document.getElementById('product-form-container').style.display = 'block';
     document.getElementById('product-form').reset();
     document.getElementById('prod-id').value = '';
+    document.getElementById('prod-img').value = '';
     document.getElementById('form-title').innerText = 'Novo Produto';
     calcMargin();
 }
@@ -77,6 +78,7 @@ function editProduct(id) {
     document.getElementById('prod-cost').value = p.price_cost;
     document.getElementById('prod-sell').value = p.price_sell;
     document.getElementById('prod-stock').value = p.stock;
+    document.getElementById('prod-img').value = p.image || '';
     document.getElementById('prod-active').value = p.active ? "true" : "false";
     document.getElementById('form-title').innerText = 'Editar Produto';
     calcMargin();
@@ -97,6 +99,9 @@ async function saveProduct(e) {
         stock: parseInt(document.getElementById('prod-stock').value),
         active: document.getElementById('prod-active').value === "true"
     };
+
+    const imgVal = document.getElementById('prod-img').value.trim();
+    if(imgVal) payload.image = imgVal;
 
     if(isEdit) payload.id = id;
 
