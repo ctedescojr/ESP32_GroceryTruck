@@ -63,17 +63,17 @@
                 <h3 id="form-title">Novo Produto</h3>
                 <form id="product-form" onsubmit="saveProduct(event)">
                     <input type="hidden" id="prod-id">
-                    <div class="form-group"><label>Nome</label><input type="text" id="prod-name" required></div>
-                    <div class="form-group"><label>Categoria</label><input type="text" id="prod-cat" required></div>
-                    <div class="form-group"><label>Descrição</label><textarea id="prod-desc"></textarea></div>
+                    <div class="form-group"><label for="prod-name">Nome</label><input type="text" id="prod-name" required></div>
+                    <div class="form-group"><label for="prod-cat">Categoria</label><input type="text" id="prod-cat" required></div>
+                    <div class="form-group"><label for="prod-desc">Descrição</label><textarea id="prod-desc"></textarea></div>
                     <div style="display:flex; gap:10px;">
-                        <div class="form-group" style="flex:1;"><label>Preço Custo</label><input type="number" step="0.01" id="prod-cost" oninput="calcMargin()" required></div>
-                        <div class="form-group" style="flex:1;"><label>Preço Venda</label><input type="number" step="0.01" id="prod-sell" oninput="calcMargin()" required></div>
+                        <div class="form-group" style="flex:1;"><label for="prod-cost">Preço Custo</label><input type="number" step="0.01" id="prod-cost" oninput="calcMargin()" required></div>
+                        <div class="form-group" style="flex:1;"><label for="prod-sell">Preço Venda</label><input type="number" step="0.01" id="prod-sell" oninput="calcMargin()" required></div>
                     </div>
                     <div id="margin-display" class="margin-indicator">Margem: --%</div>
-                    <div class="form-group" style="margin-top:10px;"><label>Estoque</label><input type="number" id="prod-stock" required></div>
-                    <div class="form-group"><label>URL da Imagem (Opcional)</label><input type="text" id="prod-img" placeholder="/img/slug.jpg ou link externo"></div>
-                    <div class="form-group"><label>Ativo</label>
+                    <div class="form-group" style="margin-top:10px;"><label for="prod-stock">Estoque</label><input type="number" id="prod-stock" required></div>
+                    <div class="form-group"><label for="prod-img">URL da Imagem (Opcional)</label><input type="text" id="prod-img" placeholder="/img/slug.jpg ou link externo"></div>
+                    <div class="form-group"><label for="prod-active">Ativo</label>
                         <select id="prod-active"><option value="true">Sim</option><option value="false">Não</option></select>
                     </div>
                     <button type="submit" class="btn">Salvar</button>
@@ -93,7 +93,10 @@
         <div id="import" class="section">
             <h2>Importar Produtos em Lote</h2>
             <p>Selecione um arquivo .csv ou .xlsx contendo seus produtos. <a href="/modelo">Baixar modelo</a></p>
-            <div class="form-group"><input type="file" id="file-import" accept=".csv, .xlsx"></div>
+            <div class="form-group">
+                <label for="file-import" style="display:none;">Arquivo de Importação</label>
+                <input type="file" id="file-import" accept=".csv, .xlsx">
+            </div>
             <button class="btn" onclick="processFile()">Pré-visualizar Importação</button>
             <div id="preview-container" style="display: none; margin-top: 20px;">
                 <h3>Preview</h3>
@@ -107,7 +110,10 @@
             <h2>Gerenciar Imagens</h2>
             <p>Faça upload de imagens (jpg, png). O nome deve ser igual ao slug do produto. (Máx 100KB/img)</p>
             <div id="storage-info" style="margin-bottom:15px; font-weight:bold;">Armazenamento: Carregando...</div>
-            <div class="form-group"><input type="file" id="image-upload" accept="image/jpeg, image/png" multiple></div>
+            <div class="form-group">
+                <label for="image-upload" style="display:none;">Upload de Imagens</label>
+                <input type="file" id="image-upload" accept="image/jpeg, image/png" multiple>
+            </div>
             <button class="btn" onclick="uploadImages()">Fazer Upload</button>
             
             <h3 style="margin-top:20px;">Status das Imagens</h3>

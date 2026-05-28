@@ -227,30 +227,58 @@ void setup() {
             JsonArray dbArray = db.is<JsonArray>() ? db.as<JsonArray>() : db.to<JsonArray>();
             JsonArray arr = newProducts.as<JsonArray>();
             int imported = 0;
+            int updated = 0;
+
             for (JsonObject p : arr) {
                 String name = p["name"] | "Produto";
                 String slug = generateSlug(name);
-                p["slug"] = slug;
-                p["id"] = String(millis()) + String(imported);
-                if (!p["image"].is<JsonVariant>()) {
-                    String path = "/img/" + slug + ".jpg";
-                    if (!LittleFS.exists(path)) {
-                        String pngPath = "/img/" + slug + ".png";
-                        if (LittleFS.exists(pngPath)) path = pngPath;
-                        else path = ""; // LEAVE EMPTY if no file exists yet
+                
+                // Check if product with this slug already exists
+                JsonObject existing;
+                bool found = false;
+                for (JsonObject item : dbArray) {
+                    if (item["slug"] == slug) {
+                        existing = item;
+                        found = true;
+                        break;
                     }
-                    p["image"] = path;
                 }
-                if (!p["active"].is<JsonVariant>()) p["active"] = true;
-                dbArray.add(p);
-                imported++;
+
+                if (found) {
+                    // Update existing
+                    if (p["category"].is<JsonVariant>()) existing["category"] = p["category"];
+                    if (p["description"].is<JsonVariant>()) existing["description"] = p["description"];
+                    if (p["price_cost"].is<JsonVariant>()) existing["price_cost"] = p["price_cost"];
+                    if (p["price_sell"].is<JsonVariant>()) existing["price_sell"] = p["price_sell"];
+                    if (p["stock"].is<JsonVariant>()) existing["stock"] = p["stock"];
+                    if (p["active"].is<JsonVariant>()) existing["active"] = p["active"];
+                    updated++;
+                } else {
+                    // Add new
+                    p["slug"] = slug;
+                    p["id"] = String(millis()) + String(imported);
+                    if (!p["image"].is<JsonVariant>()) {
+                        String path = "/img/" + slug + ".jpg";
+                        if (!LittleFS.exists(path)) {
+                            String pngPath = "/img/" + slug + ".png";
+                            if (LittleFS.exists(pngPath)) path = pngPath;
+                            else path = ""; 
+                        }
+                        p["image"] = path;
+                    }
+                    if (!p["active"].is<JsonVariant>()) p["active"] = true;
+                    dbArray.add(p);
+                    imported++;
+                }
             }
             file = LittleFS.open("/products.json", "w"); serializeJson(db, file); file.close();
             
             JsonDocument resDoc;
             resDoc["imported"] = imported;
+            resDoc["updated"] = updated;
             resDoc["skipped"] = 0;
-            resDoc["errors"] = resDoc.to<JsonObject>().createNestedArray("errors"); // Fix warning
+            resDoc["errors"].to<JsonArray>(); 
+            
             String res;
             serializeJson(resDoc, res);
 

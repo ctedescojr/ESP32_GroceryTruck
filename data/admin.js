@@ -264,7 +264,7 @@ async function confirmImport() {
             return alert(`Falha na importação: ${result.error || 'Erro desconhecido'}`);
         }
         
-        alert(`Importação concluída!\nImportados: ${result.imported}\nErros: ${result.errors ? result.errors.length : 0}`);
+        alert(`Importação concluída!\nNovos: ${result.imported}\nAtualizados: ${result.updated || 0}\nErros: ${result.errors ? result.errors.length : 0}`);
         document.getElementById('preview-container').style.display = 'none';
         document.getElementById('file-import').value = '';
         loadProducts();
