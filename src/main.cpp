@@ -232,7 +232,14 @@ void setup() {
                 String slug = generateSlug(name);
                 p["slug"] = slug;
                 p["id"] = String(millis()) + String(imported);
-                if (!p["image"].is<JsonVariant>()) p["image"] = "/img/" + slug + ".jpg";
+                if (!p["image"].is<JsonVariant>()) {
+                    String path = "/img/" + slug + ".jpg";
+                    if (!LittleFS.exists(path)) {
+                        String pngPath = "/img/" + slug + ".png";
+                        if (LittleFS.exists(pngPath)) path = pngPath;
+                    }
+                    p["image"] = path;
+                }
                 if (!p["active"].is<JsonVariant>()) p["active"] = true;
                 dbArray.add(p);
                 imported++;
@@ -344,7 +351,14 @@ void setup() {
             String slug = generateSlug(name);
             newProduct["slug"] = slug;
             newProduct["id"] = String(millis());
-            if(!newProduct["image"].is<JsonVariant>()) newProduct["image"] = "/img/" + slug + ".jpg";
+            if(!newProduct["image"].is<JsonVariant>()) {
+                String path = "/img/" + slug + ".jpg";
+                if (!LittleFS.exists(path)) {
+                    String pngPath = "/img/" + slug + ".png";
+                    if (LittleFS.exists(pngPath)) path = pngPath;
+                }
+                newProduct["image"] = path;
+            }
             if(!newProduct["active"].is<JsonVariant>()) newProduct["active"] = true;
             
             File file = LittleFS.open("/products.json", "r");

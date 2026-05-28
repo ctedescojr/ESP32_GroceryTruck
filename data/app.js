@@ -49,7 +49,9 @@ function renderProducts() {
             const card = document.createElement('div');
             card.className = 'product-card';
             card.innerHTML = `
-                <img src="${p.image}" class="product-img" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'100\\' height=\\'100\\'><rect width=\\'100\\' height=\\'100\\' fill=\\'%23eee\\'/><text x=\\'50%\\' y=\\'50%\\' dominant-baseline=\\'middle\\' text-anchor=\\'middle\\' fill=\\'%23999\\'>Sem Foto</text></svg>'">
+                <img src="${p.image}" class="product-img" 
+                    onerror="if(this.src.includes('.jpg')){this.src=this.src.replace('.jpg','.png')}else{this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'100\\' height=\\'100\\'><rect width=\\'100\\' height=\\'100\\' fill=\\'%23eee\\'/><text x=\\'50%\\' y=\\'50%\\' dominant-baseline=\\'middle\\' text-anchor=\\'middle\\' fill=\\'%23999\\'>Sem Foto</text></svg>'}"
+                >
                 <div class="product-info">
                     <div class="product-name" style="font-weight:bold; margin-bottom:5px;">${p.name}</div>
                     <div style="font-size:0.8em; color:#666; margin-bottom:5px; min-height:30px;">${p.description || ''}</div>

@@ -28,7 +28,9 @@ async function loadProducts() {
             if (!p) return;
             const imgPath = p.image ? p.image : '';
             html += `<tr>
-                <td><img src="${imgPath}" width="40" height="40" style="object-fit:cover; border-radius:4px;" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'40\\' height=\\'40\\'><rect width=\\'40\\' height=\\'40\\' fill=\\'%23ccc\\'/></svg>'"></td>
+                <td><img src="${imgPath}" width="40" height="40" style="object-fit:cover; border-radius:4px;" 
+                    onerror="if(this.src.includes('.jpg')){this.src=this.src.replace('.jpg','.png')}else{this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'40\\' height=\\'40\\'><rect width=\\'40\\' height=\\'40\\' fill=\\'%23ccc\\'/></svg>'}"
+                ></td>
                 <td>${p.name}<br><small>${p.category}</small></td>
                 <td>${p.stock}</td>
                 <td>R$ ${parseFloat(p.price_sell).toFixed(2)}</td>
