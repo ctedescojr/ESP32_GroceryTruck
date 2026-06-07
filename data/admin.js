@@ -177,25 +177,17 @@ async function processFile() {
     const fileInput = document.getElementById('file-import');
     if (!fileInput.files.length) return alert('Selecione um arquivo.');
     const file = fileInput.files[0];
-    const isCSV = file.name.toLowerCase().endsWith('.csv');
+    
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+        return alert('Apenas arquivos .csv são suportados para poupar memória do ESP32.');
+    }
     
     const reader = new FileReader();
     reader.onload = async function(e) {
-        let rows = [];
-        if (isCSV) {
-            rows = parseCSV(e.target.result);
-            await validateAndPreview(rows);
-        } else {
-            if(typeof XLSX === 'undefined') return alert('SheetJS não carregado. Verifique data/libs/xlsx.full.min.js');
-            const data = new Uint8Array(e.target.result);
-            const workbook = XLSX.read(data, {type: 'array'});
-            const sheet = workbook.Sheets[workbook.SheetNames[0]];
-            rows = XLSX.utils.sheet_to_json(sheet, {defval: ''});
-            await validateAndPreview(rows);
-        }
+        let rows = parseCSV(e.target.result);
+        await validateAndPreview(rows);
     };
-    if (isCSV) reader.readAsText(file, 'utf-8');
-    else reader.readAsArrayBuffer(file);
+    reader.readAsText(file, 'utf-8');
 }
 
 function parseCSV(text) {
