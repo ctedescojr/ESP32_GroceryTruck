@@ -6,9 +6,12 @@
 #include "product_manager.h"
 #include "utils.h"
 #include <LittleFS.h>
+#ifdef ENABLE_DISPLAY
+#include "display_manager.h"
+#endif
 
 extern File uploadFile; // Define uploadFile in main or api_handlers, or here. Let's define it here.
-File uploadFile;
+File        uploadFile;
 
 void initProductManager() {
     if (!LittleFS.exists("/products.json")) {
@@ -63,7 +66,8 @@ void handleGetAllProducts(AsyncWebServerRequest *request) {
         request->send(response);
         return;
     }
-    AsyncWebServerResponse *response = request->beginResponse(file, "/products.json", "application/json");
+    AsyncWebServerResponse *response =
+        request->beginResponse(file, "/products.json", "application/json");
     addCorsHeaders(response);
     request->send(response);
     file.close();
@@ -129,7 +133,8 @@ void handleProductBulkRequest(AsyncWebServerRequest *request) {
             String errorMsg = "{\"error\":\"Invalid JSON: ";
             errorMsg += error.c_str();
             errorMsg += "\"}";
-            AsyncWebServerResponse *response = request->beginResponse(400, "application/json", errorMsg);
+            AsyncWebServerResponse *response =
+                request->beginResponse(400, "application/json", errorMsg);
             addCorsHeaders(response);
             request->send(response);
             return;
@@ -161,12 +166,18 @@ void handleProductBulkRequest(AsyncWebServerRequest *request) {
             }
 
             if (found) {
-                if (p["category"].is<JsonVariant>()) existing["category"] = p["category"];
-                if (p["description"].is<JsonVariant>()) existing["description"] = p["description"];
-                if (p["price_cost"].is<JsonVariant>()) existing["price_cost"] = p["price_cost"];
-                if (p["price_sell"].is<JsonVariant>()) existing["price_sell"] = p["price_sell"];
-                if (p["stock"].is<JsonVariant>()) existing["stock"] = p["stock"];
-                if (p["active"].is<JsonVariant>()) existing["active"] = p["active"];
+                if (p["category"].is<JsonVariant>())
+                    existing["category"] = p["category"];
+                if (p["description"].is<JsonVariant>())
+                    existing["description"] = p["description"];
+                if (p["price_cost"].is<JsonVariant>())
+                    existing["price_cost"] = p["price_cost"];
+                if (p["price_sell"].is<JsonVariant>())
+                    existing["price_sell"] = p["price_sell"];
+                if (p["stock"].is<JsonVariant>())
+                    existing["stock"] = p["stock"];
+                if (p["active"].is<JsonVariant>())
+                    existing["active"] = p["active"];
                 updated++;
             } else {
                 p["slug"] = slug;
@@ -175,12 +186,15 @@ void handleProductBulkRequest(AsyncWebServerRequest *request) {
                     String path = "/img/" + slug + ".jpg";
                     if (!LittleFS.exists(path)) {
                         String pngPath = "/img/" + slug + ".png";
-                        if (LittleFS.exists(pngPath)) path = pngPath;
-                        else path = "";
+                        if (LittleFS.exists(pngPath))
+                            path = pngPath;
+                        else
+                            path = "";
                     }
                     p["image"] = path;
                 }
-                if (!p["active"].is<JsonVariant>()) p["active"] = true;
+                if (!p["active"].is<JsonVariant>())
+                    p["active"] = true;
                 dbArray.add(p);
                 imported++;
             }
@@ -246,21 +260,23 @@ void handleImageCheck(AsyncWebServerRequest *request) {
 
 void handleProductImageUploadRequest(AsyncWebServerRequest *request) {
     if (request->_tempObject) {
-        String                 *msg  = (String *)request->_tempObject;
-        int                     code = msg->indexOf("error") > 0 ? 413 : 200;
+        String                 *msg      = (String *)request->_tempObject;
+        int                     code     = msg->indexOf("error") > 0 ? 413 : 200;
         AsyncWebServerResponse *response = request->beginResponse(code, "application/json", *msg);
         addCorsHeaders(response);
         request->send(response);
         delete msg;
         request->_tempObject = NULL;
     } else {
-        AsyncWebServerResponse *response = request->beginResponse(400, "application/json", "{\"error\":\"Upload failed\"}");
+        AsyncWebServerResponse *response =
+            request->beginResponse(400, "application/json", "{\"error\":\"Upload failed\"}");
         addCorsHeaders(response);
         request->send(response);
     }
 }
 
-void handleProductImageUpload(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
+void handleProductImageUpload(AsyncWebServerRequest *request, String filename, size_t index,
+                              uint8_t *data, size_t len, bool final) {
     String path = "/img/" + filename;
     if (!index) {
         request->_tempObject = new String();
@@ -363,10 +379,10 @@ void handleGetSalesSummary(AsyncWebServerRequest *request) {
         deserializeJson(db, file);
         file.close();
     }
-    JsonArray arr        = db.as<JsonArray>();
-    String    filterDate = request->hasParam("date") ? request->getParam("date")->value() : "";
-    float     totalRevenue = 0;
-    int       totalSales   = 0;
+    JsonArray    arr          = db.as<JsonArray>();
+    String       filterDate   = request->hasParam("date") ? request->getParam("date")->value() : "";
+    float        totalRevenue = 0;
+    int          totalSales   = 0;
     JsonDocument summary;
     summary["total_revenue"] = 0;
     summary["total_sales"]   = 0;
@@ -405,15 +421,18 @@ void handleSaleCreateRequest(AsyncWebServerRequest *request) {
         delete body;
         request->_tempObject = NULL;
         if (error) {
-            AsyncWebServerResponse *response = request->beginResponse(400, "application/json", "{\"error\":\"Invalid JSON\"}");
+            AsyncWebServerResponse *response =
+                request->beginResponse(400, "application/json", "{\"error\":\"Invalid JSON\"}");
             addCorsHeaders(response);
             request->send(response);
             return;
         }
 
         newSale["id"] = String(millis());
-        if (!newSale["timestamp"].is<JsonVariant>()) newSale["timestamp"] = time(NULL);
-        if (!newSale["date"].is<JsonVariant>()) newSale["date"] = "1970-01-01";
+        if (!newSale["timestamp"].is<JsonVariant>())
+            newSale["timestamp"] = time(NULL);
+        if (!newSale["date"].is<JsonVariant>())
+            newSale["date"] = "1970-01-01";
 
         File         file = LittleFS.open("/sales.json", "r");
         JsonDocument db;
@@ -426,6 +445,22 @@ void handleSaleCreateRequest(AsyncWebServerRequest *request) {
         file = LittleFS.open("/sales.json", "w");
         serializeJson(db, file);
         file.close();
+
+#ifdef ENABLE_DISPLAY
+        // newSale ainda está em escopo aqui — montamos o resumo para o CYD
+        String    itemsSummary     = "";
+        JsonArray displaySaleItems = newSale["items"].as<JsonArray>();
+        for (JsonObject item : displaySaleItems) {
+            String name = item["name"] | "?";
+            int    qty  = item["qty"] | 1;
+            if (itemsSummary.length() > 0)
+                itemsSummary += "\n";
+            if (name.length() > 12)
+                name = name.substring(0, 11) + ".";
+            itemsSummary += name + " x" + String(qty);
+        }
+        displayNotifySale(newSale["total"].as<float>(), itemsSummary);
+#endif
 
         File         pFile = LittleFS.open("/products.json", "r");
         JsonDocument pDb;
@@ -449,7 +484,8 @@ void handleSaleCreateRequest(AsyncWebServerRequest *request) {
             serializeJson(pDb, pFile);
             pFile.close();
         }
-        AsyncWebServerResponse *response = request->beginResponse(200, "application/json", "{\"success\":true}");
+        AsyncWebServerResponse *response =
+            request->beginResponse(200, "application/json", "{\"success\":true}");
         addCorsHeaders(response);
         request->send(response);
     } else {
@@ -460,7 +496,8 @@ void handleSaleCreateRequest(AsyncWebServerRequest *request) {
 void handleSystemStorage(AsyncWebServerRequest *request) {
     size_t total = LittleFS.totalBytes();
     size_t used  = LittleFS.usedBytes();
-    String res   = "{\"total_bytes\":" + String(total) + ",\"used_bytes\":" + String(used) + ",\"free_bytes\":" + String(total - used) + "}";
+    String res   = "{\"total_bytes\":" + String(total) + ",\"used_bytes\":" + String(used) +
+                   ",\"free_bytes\":" + String(total - used) + "}";
     AsyncWebServerResponse *response = request->beginResponse(200, "application/json", res);
     addCorsHeaders(response);
     request->send(response);
@@ -468,7 +505,8 @@ void handleSystemStorage(AsyncWebServerRequest *request) {
 
 void handleDownloadModel(AsyncWebServerRequest *request) {
     if (LittleFS.exists("/produtos_modelo.csv")) {
-        AsyncWebServerResponse *response = request->beginResponse(LittleFS, "/produtos_modelo.csv", "text/csv");
+        AsyncWebServerResponse *response =
+            request->beginResponse(LittleFS, "/produtos_modelo.csv", "text/csv");
         response->addHeader("Content-Disposition", "attachment; filename=\"produtos_modelo.csv\"");
         request->send(response);
     } else {
@@ -476,14 +514,16 @@ void handleDownloadModel(AsyncWebServerRequest *request) {
     }
 }
 
-
-ProductUpdateHandler::ProductUpdateHandler() {}
+ProductUpdateHandler::ProductUpdateHandler() {
+}
 
 bool ProductUpdateHandler::canHandle(AsyncWebServerRequest *request) {
     if (request->url().startsWith("/api/products/") && request->url().length() > 14) {
-        if (request->url() == "/api/products/bulk" || request->url() == "/api/products/all" || request->url() == "/api/products/image/upload")
+        if (request->url() == "/api/products/bulk" || request->url() == "/api/products/all" ||
+            request->url() == "/api/products/image/upload")
             return false;
-        return request->method() == HTTP_PUT || request->method() == HTTP_DELETE || request->method() == HTTP_OPTIONS;
+        return request->method() == HTTP_PUT || request->method() == HTTP_DELETE ||
+               request->method() == HTTP_OPTIONS;
     }
     return false;
 }
@@ -517,7 +557,8 @@ void ProductUpdateHandler::handleRequest(AsyncWebServerRequest *request) {
         serializeJson(newDb, file);
         file.close();
 
-        AsyncWebServerResponse *response = request->beginResponse(200, "application/json", found ? "{\"success\":true}" : "{\"error\":\"not found\"}");
+        AsyncWebServerResponse *response = request->beginResponse(
+            200, "application/json", found ? "{\"success\":true}" : "{\"error\":\"not found\"}");
         addCorsHeaders(response);
         request->send(response);
         return;
@@ -546,7 +587,8 @@ void ProductUpdateHandler::handleRequest(AsyncWebServerRequest *request) {
                         if (kv.key() != "id")
                             p[kv.key()] = kv.value();
                     }
-                    if (updateDoc["name"].is<JsonVariant>() && !updateDoc["slug"].is<JsonVariant>()) {
+                    if (updateDoc["name"].is<JsonVariant>() &&
+                        !updateDoc["slug"].is<JsonVariant>()) {
                         p["slug"] = generateSlug(updateDoc["name"].as<String>());
                     }
                     break;
@@ -556,7 +598,9 @@ void ProductUpdateHandler::handleRequest(AsyncWebServerRequest *request) {
             serializeJson(db, file);
             file.close();
 
-            AsyncWebServerResponse *response = request->beginResponse(200, "application/json", found ? "{\"success\":true}" : "{\"error\":\"not found\"}");
+            AsyncWebServerResponse *response =
+                request->beginResponse(200, "application/json",
+                                       found ? "{\"success\":true}" : "{\"error\":\"not found\"}");
             addCorsHeaders(response);
             request->send(response);
         } else {
@@ -565,7 +609,8 @@ void ProductUpdateHandler::handleRequest(AsyncWebServerRequest *request) {
     }
 }
 
-void ProductUpdateHandler::handleBody(AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
+void ProductUpdateHandler::handleBody(AsyncWebServerRequest *request, uint8_t *data, size_t len,
+                                      size_t index, size_t total) {
     if (request->method() == HTTP_PUT) {
         if (index == 0)
             request->_tempObject = new String();
