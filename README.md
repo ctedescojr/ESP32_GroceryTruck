@@ -23,9 +23,10 @@ It acts as its own Wi-Fi Access Point and Web Server. Both the business owner (a
 *   **📊 Sales Reports:** Tracks daily revenue, total items sold, and highlights top-selling products.
 *   **📑 Excel/CSV Bulk Import:** Upload a `.xlsx` or `.csv` file directly from your phone or PC to update your entire inventory at once. Parsed locally on the browser using an offline version of SheetJS.
 *   **🖼️ Smart Image Uploads:** Upload product photos directly to the ESP32. The system automatically associates the image with the product and handles both `.jpg` and `.png` formats seamlessly.
+*   **📺 Smart Display (CYD):** Optional support for CYD (Cheap Yellow Display) boards to show network status, connected clients, daily sales, and recent transaction details directly on the device's touch screen.
 
 ### Technical Stack
-*   **Hardware:** ESP32 (4MB Flash minimum).
+*   **Hardware:** ESP32 (4MB Flash minimum). *Optional: CYD (Cheap Yellow Display) board with ILI9341 touch screen.*
 *   **Firmware:** C++ / Arduino Framework (PlatformIO).
 *   **Web Server:** `ESPAsyncWebServer` & `AsyncTCP`.
 *   **Storage:** LittleFS for static files and JSON databases (`products.json`, `sales.json`).
@@ -34,9 +35,11 @@ It acts as its own Wi-Fi Access Point and Web Server. Both the business owner (a
 
 ### Installation (PlatformIO)
 1. Clone this repository.
-2. Build the firmware: `pio run`
-3. Upload the firmware to the ESP32: `pio run --target upload`
-4. Upload the web files to LittleFS: `pio run --target uploadfs`
+2. Build the firmware (choose your environment):
+   * Without display: `pio run -e grocery_truck`
+   * With CYD display: `pio run -e grocery_truck_cyd`
+3. Upload the firmware to the ESP32: `pio run -e <environment> --target upload`
+4. Upload the web files to LittleFS: `pio run -e <environment> --target uploadfs`
 5. Connect to the Wi-Fi network `GroceryTruck` (Password: `fiorino123`).
 6. Access the store at `http://192.168.4.1` or the admin panel at `http://192.168.4.1/admin`.
 
@@ -61,9 +64,10 @@ Ele atua como seu próprio Roteador Wi-Fi (Access Point) e Servidor Web. Tanto o
 *   **📊 Relatórios de Vendas:** Acompanhe o faturamento diário, total de vendas e saiba quais são os produtos mais vendidos.
 *   **📑 Importação em Massa (Excel/CSV):** Faça upload de um arquivo `.xlsx` ou `.csv` direto do celular ou PC para atualizar todo o seu estoque de uma vez. O processamento é feito no próprio navegador (SheetJS offline).
 *   **🖼️ Upload Inteligente de Imagens:** Envie fotos dos produtos direto para a memória do ESP32. O sistema associa a imagem ao produto automaticamente e lida com formatos `.jpg` e `.png` sem problemas (compressão recomendada < 100KB).
+*   **📺 Display Inteligente (CYD):** Suporte opcional para placas CYD (Cheap Yellow Display) para exibir status da rede, clientes conectados, vendas diárias e detalhes da última transação diretamente na tela touch do dispositivo.
 
 ### Stack Tecnológica
-*   **Hardware:** ESP32 (Mínimo de 4MB Flash).
+*   **Hardware:** ESP32 (Mínimo de 4MB Flash). *Opcional: Placa CYD (Cheap Yellow Display) com tela touch ILI9341.*
 *   **Firmware:** C++ / Arduino Framework (PlatformIO).
 *   **Servidor Web:** `ESPAsyncWebServer` & `AsyncTCP`.
 *   **Armazenamento:** LittleFS para arquivos estáticos e banco de dados JSON (`products.json`, `sales.json`).
@@ -72,8 +76,10 @@ Ele atua como seu próprio Roteador Wi-Fi (Access Point) e Servidor Web. Tanto o
 
 ### Instalação (PlatformIO)
 1. Clone este repositório.
-2. Compile o firmware: `pio run`
-3. Grave o firmware no ESP32: `pio run --target upload`
-4. Grave os arquivos do site na memória LittleFS: `pio run --target uploadfs`
+2. Compile o firmware (escolha seu ambiente):
+   * Sem display: `pio run -e grocery_truck`
+   * Com display CYD: `pio run -e grocery_truck_cyd`
+3. Grave o firmware no ESP32: `pio run -e <ambiente> --target upload`
+4. Grave os arquivos do site na memória LittleFS: `pio run -e <ambiente> --target uploadfs`
 5. Conecte-se à rede Wi-Fi `GroceryTruck` (Senha: `fiorino123`).
 6. Acesse a loja em `http://192.168.4.1` ou o painel em `http://192.168.4.1/admin`.
