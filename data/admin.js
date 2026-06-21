@@ -144,7 +144,15 @@ async function saveProduct(e) {
             if (fileInput.files.length > 0) {
                 const file = fileInput.files[0];
                 const ext = file.name.substring(file.name.lastIndexOf('.'));
-                const newFileName = savedProduct.slug + ext;
+                
+                let newSlug = '';
+                if (isEdit) {
+                    const existingProd = allProducts.find(p => p.id === id);
+                    newSlug = existingProd ? existingProd.slug : getSlug(payload.name);
+                } else {
+                    newSlug = savedProduct.slug || getSlug(payload.name);
+                }
+                const newFileName = newSlug + ext;
                 
                 const formData = new FormData();
                 formData.append('file', file, newFileName);
