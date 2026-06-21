@@ -41,7 +41,7 @@ void setupApiRoutes(AsyncWebServer &server) {
     server.addHandler(new ProductUpdateHandler());
 
     // Basic routes and CORS fallback
-    server.on("/favicon.ico", HTTP_GET, [](AsyncWebServerRequest *request) { request->send(204); });
+    // Removido o bloqueio do favicon para que o ESPAsyncWebServer o sirva via LittleFS
 
     server.onNotFound([](AsyncWebServerRequest *request) {
         if (request->method() == HTTP_OPTIONS) {

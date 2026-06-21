@@ -12,6 +12,7 @@
 
 #include <Arduino.h>
 #include <ESPAsyncWebServer.h>
+#include <LittleFS.h>
 
 #include "api_handlers.h"
 #include "network_manager.h"
@@ -27,6 +28,11 @@ AsyncWebServer server(80);
 void setup() {
     Serial.begin(115200);
     Serial.println("\nBooting ESP32_GroceryTruck v2 (Refactored)...");
+
+    if (!LittleFS.begin(true)) {
+        Serial.println("Erro Crítico: Falha ao montar o LittleFS!");
+        return;
+    }
 
     initProductManager();   // Garante que LittleFS está ok e diretórios existem
     setupNetwork();         // Configura e sobe a rede Wi-Fi
